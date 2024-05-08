@@ -26,6 +26,7 @@
 		     "phytec,am64-phycore-som", "ti,am642";
 	model = "PHYTEC phyBOARD-Electra-AM64x RDK";
 
+
 	aliases {
 		mmc1 = &sdhci1;
 		serial2 = &main_uart0;
@@ -102,9 +103,23 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+
 };
 
 &main_pmx0 {
+
+	aux_gpio: aux-gpio {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0A8, PIN_INPUT, 7) /* (R19) GPIO0_41*/
+			AM64X_IOPAD(0x0AC, PIN_INPUT, 7) /* (R20) GPIO0_42*/
+			AM64X_IOPAD(0x088, PIN_INPUT, 7) /* (R18) GPIO0_33*/
+			AM64X_IOPAD(0x094, PIN_INPUT, 7) /* (T19) GPIO0_36*/
+			AM64X_IOPAD(0x23C, PIN_INPUT, 7) /* (A16) GPIO1_55*/
+			AM64X_IOPAD(0x270, PIN_INPUT, 7) /* (D18) GPIO1_68*/
+		>;
+	};
+
+
 	can_tc1_pins_default: can-tc1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0084, PIN_OUTPUT, 7)	/* (P16) GPMC0_ADVn_ALE.GPIO0_32 */

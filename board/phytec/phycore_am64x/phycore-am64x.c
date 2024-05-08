@@ -20,6 +20,8 @@
 #include <extension_board.h>
 #include <malloc.h>
 #include <mtd_node.h>
+#include <asm/gpio.h>
+
 
 #include "../common/am64_som_detection.h"
 
@@ -149,23 +151,53 @@ int board_fit_config_name_match(const char *name)
 }
 #endif
 
-#ifdef CONFIG_SPL_BOARD_INIT
-#define CTRLMMR_USB0_PHY_CTRL	0x43004008
-#define CORE_VOLTAGE		0x80000000
-
-void spl_board_init(void)
+/* Detect factory_reset request */
+static int __maybe_unused detect_factory_reset(void)
 {
-	u32 val;
+	if (IS_ENABLED(CONFIG_DM_GPIO) && IS_ENABLED(CONFIG_OF_LIBFDT)) {
+		struct gpio_desc desc = {0};
+		char *factory_reset_gpio = "gpio@601000_55";
+		int ret;
 
-	/* Set USB PHY core voltage to 0.85V */
-	val = readl(CTRLMMR_USB0_PHY_CTRL);
-	val &= ~(CORE_VOLTAGE);
-	writel(val, CTRLMMR_USB0_PHY_CTRL);
+		ret = dm_gpio_lookup_name(factory_reset_gpio, &desc);
+		if (ret) {
+			printf("error getting GPIO lookup name: %d \t %s \n", ret, factory_reset_gpio);
+			return ret;
+		}
 
-	/* Init DRAM size for R5/A53 SPL */
-	dram_init_banksize();
-}
-#endif
+		ret = dm_gpio_request(&desc, factory_reset_gpio);
+		if (ret) {
+			printf("error requesting GPIO: %d\n", ret);
+			goto err_free_gpio;
+		}
+
+		ret = dm_gpio_set_dir_flags(&desc, GPIOD_IS_IN);
+		if (ret) {
+			printf("error setting direction flag of GPIO: %d\n", ret);
+			goto err_free_gpio;
+		}
+
+		if (dm_gpio_get_value(&desc)) {
+			printf("ON ON ON ON ON ON \n ON ON ON ON ON ON \n");
+		} else {
+			printf("OFF OFF OFF OFF OFF OFF \n OFF OFF OFF OFF OFF OFF \n");
+		}
+err_free_gpio:
+		dm_gpio_free(desc.dev, &desc);
+		return ret;
+	}
+
+/*
+	int res = dm_gpio_set_value(&desc, 1);
+	mdelay(50);
+	if (res) {
+		debug("%s: Error while setting GPIO %d (err = %d)\n",
+		dev->name, i, res);
+		res;
+	}
+*/
+}	
+
 
 /* Functions borrowed from am642_init.c */
 static u32 __get_backup_bootmedia(u32 main_devstat)
@@ -411,5 +443,25 @@ int board_fix_fdt(void *blob)
 	if (ret || !data.valid)
 		return 0;
 	return qspi_fixup(NULL, &data);
+}
+#endif
+
+
+#ifdef CONFIG_SPL_BOARD_INIT
+#define CTRLMMR_USB0_PHY_CTRL	0x43004008
+#define CORE_VOLTAGE		0x80000000
+
+void spl_board_init(void)
+{
+	u32 val;
+
+	/* Set USB PHY core voltage to 0.85V */
+	val = readl(CTRLMMR_USB0_PHY_CTRL);
+	val &= ~(CORE_VOLTAGE);
+	writel(val, CTRLMMR_USB0_PHY_CTRL);
+
+	/* Init DRAM size for R5/A53 SPL */
+	dram_init_banksize();
+	detect_factory_reset();
 }
 #endif
